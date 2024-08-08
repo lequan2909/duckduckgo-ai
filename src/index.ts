@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { z } from "zod";
 import { validator } from "hono/validator";
-import { OpenAIRequest, OpenAIResponse, OpenAIStreamResponse } from "./types";
+import { OpenAIRequest, OpenAIResponse } from "./types";
 import { streamSSE } from 'hono/streaming';
 import { cors } from 'hono/cors';
+import { createHash } from 'crypto'; // Thêm import cho crypto
 
 const headers = {
   'Content-Type': 'application/json',
@@ -53,6 +54,14 @@ const getOrSetXvqd4 = async (conversationHash: string, newValue?: string) => {
   return await KV.get(conversationHash);
 };
 
+const createConversationHash = (messages: Array<{ role: string; content: string }>): string => {
+  const hash = createHash('sha256');
+  messages.forEach(message => {
+    hash.update(`${message.role}:${message.content}`);
+  });
+  return hash.digest('hex');
+};
+
 app.get('/', (c) => {
   return c.text('Hello Hono!');
 });
@@ -95,7 +104,7 @@ app.post("/v1/chat/completions", validator('json', (value, c) => {
   requestParams["messages"] = messages;
 
   try {
-    const conversationHash = /* Tạo hash cho cuộc hội thoại */;
+    const conversationHash = createConversationHash(params.messages); // Tạo hash cho cuộc hội thoại
     let x4 = await getOrSetXvqd4(conversationHash);
     if (!x4) {
       x4 = await getXvqd4() || "";
@@ -119,7 +128,7 @@ app.post("/v1/chat/completions", validator('json', (value, c) => {
     const responseData: OpenAIResponse = await resp.json();
     return c.json(responseData);
   } catch (e) {
-    return c.json({ error: e }, 400);
+    return c.json({ error: e.message || e }, 400);
   }
 });
 
